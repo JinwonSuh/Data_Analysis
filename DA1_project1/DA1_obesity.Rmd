@@ -1,0 +1,229 @@
+---
+title: "DA_Project1_Obesity"
+author: "Jinwon Suh"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, tidy = TRUE, tidy.opts = list(width.cutoff=60))
+```
+
+
+
+
+```{r}
+library(readr)
+Obesity_M <- read_csv("Obesity_M.csv")
+#View(Obesity_M)
+Obesity_F <- read_csv("Obesity_F.csv")
+#View(Obesity_F)
+obesity <- read_csv("obesity1.csv")
+# View(obesity)
+
+```
+
+```{r}
+Obesity_F$BMI <- Obesity_F$Weight / (Obesity_F$Height)^2
+Obesity_M$BMI <- Obesity_M$Weight / (Obesity_M$Height)^2
+obesity$BMI <- obesity$Weight/(obesity$Height)^2
+obesity$obesity <- ifelse(obesity$BMI > 30, "2" ,ifelse(obesity$BMI >25 ,"1", "0")) #Changing dependent variable to Categorical Variable
+table(obesity$obesity)
+```
+
+
+```{r}
+#EDA w/ Graphical display   
+pie(table(obesity$obesity))
+```
+
+
+
+```{r}
+pie(table(obesity$CH2O))
+```
+```{r}
+pie(table(obesity$FCVC))
+```
+
+```{r}
+pie(table(obesity$NCP))
+table(obesity$NCP)
+```
+
+```{r}
+pie(table(obesity$FAVC))
+```
+```{r}
+pie(table(obesity$SMOKE))
+```
+```{r}
+pie(table(obesity$FAF))
+```
+
+```{r}
+pie(table(obesity$TUE))
+```
+
+```{r}
+pie(table(obesity$CALC))
+```
+ 
+ 
+ 
+```{r}
+Obesity_F$FAVC <- as.factor(Obesity_F$FAVC)
+Obesity_M$FAVC <- as.factor(Obesity_M$FAVC)
+obesity$FAVC <- as.factor(obesity$FAVC)
+obesity$obesity <- as.factor(obesity$obesity)
+```
+
+
+```{r}
+#ANOVA w/ All variable
+summary(aov(obesity$BMI ~ obesity$FAVC))
+```
+```{r}
+summary(aov(obesity$BMI ~ obesity$FCVC))
+```
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$NCP))
+```
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$CH2O))
+```
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$SMOKE))
+```
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$FAF))
+```
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$TUE))
+```
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$Age))
+```
+
+
+
+```{r}
+summary(aov(obesity$BMI ~ obesity$CALC))
+```
+
+
+```{r}
+mean(obesity$FAVC)
+```
+
+```{r}
+obesity$SMOKE <- as.factor(obesity$SMOKE)
+obesity$CALC <- as.factor(obesity$CALC) 
+obesity$FCVC <- as.factor(obesity$FCVC)
+summary(obesity)
+```
+
+```{r}
+summary(obesity$FCVC)
+```
+
+```{r}
+table(obesity$CALC)
+```
+
+```{r}
+obesity$CALC <- ifelse(obesity$CALC == "Always",3,ifelse(obesity$CALC == "Frequently", 2, ifelse(obesity$CALC == "Sometimes",1,0)))
+```
+
+
+
+```{r}
+obesity$FAVC <- ifelse(obesity$FAVC == "no", 0 , 1)
+obesity$SMOKE <- ifelse(obesity$SMOKE == "no", 0 , 1)
+
+```
+
+#graphical display of Dependent variable and significant independent variables
+
+```{r}
+boxplot(obesity$Age ~ obesity$obesity,col='steelblue',
+        main='Age by obesity',
+        xlab='obesity',
+        ylab='age')
+```
+
+```{r}
+tab1 <- prop.table(table(obesity$CH2O, obesity$obesity),2)
+barplot(tab1, legend.text = T, args.legend = c(x = 3.5,y = 1.18, horiz = T), xlab = "obesity level", ylab = "water consumption", col = c("pink","lightblue", "blue"))
+```
+
+
+```{r}
+tab1 <- prop.table(table(obesity$NCP, obesity$obesity),2)
+barplot(tab1, legend.text = T, args.legend = c(x = 3.5,y = 1.18, horiz = T), xlab = "obesity level", ylab = "Meals per day", col = c("red","purple", "white"))
+```
+
+
+```{r}
+tab1 <- prop.table(table(obesity$CALC, obesity$obesity),2)
+barplot(tab1, legend.text = T, args.legend = c(x = 3.5,y = 1.18, horiz = T), xlab = "obesity level", ylab = "Alcohol consumption", col = c("orange","yellow", "magenta", "black"))
+```
+
+```{r}
+#fitting baseline category logit model
+library(nnet)
+glm <- multinom(obesity ~ NCP + CH2O + SMOKE + FAF + CALC + Age , data = obesity)
+summary(glm)
+```
+
+$$
+    \begin{aligned}
+    log(p_1/p_0) = -3.445322 -0.3199721_{NCP} + 0.5445439_{CH2O} + 0.1462062_{SMOKE} -0.2719124_{FAF} + 0.23999895_{CALC} + 0.09959985_{age}\\
+    log(p_2/p_0) = -4.131715 -0.2838804_{NCP} + 0.5227755 _{CH2O} + 1.1397451_{SMOKE} -0.3441646_{FAF} + 0.06968463_{CALC} + 0.10333424_{age}\\
+    \end{aligned}
+    $$
+#Equation     
+    
+    
+    
+```{r}
+#Stepwise selection for the best model
+obesity$obese <- ifelse(obesity$BMI > 25 , 1 , 0)
+glm1 <- glm(obese ~ NCP + CH2O + SMOKE + FAF + CALC + Age , data = obesity)
+glm0 <- glm(obese ~ 1, data = obesity)
+step(glm0, scope = list(lower = glm0, upper = glm1), direction = "forward",
+trace = F)
+
+```
+
+
+```{r}
+glm1 <- glm(obese ~ NCP + CH2O + SMOKE + FAF + CALC + Age , data = obesity)
+step(glm1, direction = "backward", trace = F)
+```
+
+
+```{r}
+glm2a <- glm(obese ~ NCP + CH2O + FAF + Age, data = obesity)
+summary(glm2a)
+```
+
+$$
+logit(p) = -0.09746     -0.06323_{NCP}+      0.10511_{CH2O}   -0.05712_{FAF}   +   0.02096_{age}
+
+$$
+
+$$
+\begin{align*}
+Y = & 0.987175514 + (-0.3116 \times \text{Sleep_Duration}) + (-0.0004 \times \text{Physical_Activity_Le}) + (-0.0004 \times \text{Heart_Rate})+ (-0.00003 \times \text{Daily_Steps})  \\ 
+& + (-0.0424 \times \text{Systolic})  + (-0.0147 \times \text{Diastolic})  + (0.5517 \times \text{Stress_Level})  + (-0.7751 \times \text{Gender Female})  + (0.3786 \times \text{Occupation Accountant})  \\
+& + \ldots \text{[similar terms for other occupation variables]}  + (-0.3036 \times \text{BMI_Category_Obese}) + (-0.0738 \times \text{BMI_Category_Overweight})  \\
+& + (-0.2209 \times \text{Sleep_Disorder_Insomnia})  + (0.02403 \times \text{Sleep_Disorder_Sleep Apnea})
+\end{align*}
+$$
