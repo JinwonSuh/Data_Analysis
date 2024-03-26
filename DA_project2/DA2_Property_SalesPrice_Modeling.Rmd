@@ -1,0 +1,205 @@
+---
+title: "Untitled"
+author: "Jinwon Suh"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(error = TRUE, fig.width=8, fig.height=5,message=FALSE, warning= FALSE)
+library(readr)
+library(corrplot)
+library(RColorBrewer)
+library("PerformanceAnalytics")
+library(grid)
+library(gridExtra)
+library(leaps)
+library(MASS)
+library(tidyverse)
+library(caret)
+library(performance)
+```
+
+
+
+```{r}
+amesOneFam <- read_csv("amesOneFam.csv")
+# View(amesOneFam)
+# colnames(amescont)
+```
+
+
+
+```{r}
+numcol <- sapply(amesOneFam, is.numeric)
+amesred <- amesOneFam[,numcol] #sorting numeric variables
+# View(amesred)
+
+
+#manually differentiated continuous variables from discrete variables
+cont <- c(1,2,3,6,7,8,9,10,11,12,13,23,24,25,26,27,28,29,30,33)
+#This vector contains the number of columns that has continuous variables
+amescont <- amesred[,cont]
+amescont <- amescont[,-1] #exclude indicator variable
+head(amescont)
+```
+
+
+```{r}
+dim(amescont)
+#there are 2002 observations in total. I will divide the data into half
+#and there will be 1001 rows each. 
+```
+
+
+```{r}
+#Spliting Test and Traing Data
+set.seed(277)
+train <- sample(2002,1001)
+amestrain <- amescont[train,]
+amestest <- amescont[-train,]
+```
+
+
+
+```{r}
+#EDA Univariate Analysis
+par(mfrow=c(2,2))
+for (i in 1:19){
+ boxplot(amestrain[,i],main=paste("Boxplot of",names(amestrain)[i]))
+  hist(amestrain[[i]],main=paste("Histogram of",names(amestrain)[i]))
+  qqnorm(amestrain[[i]], main=paste("Q-Q plot of",names(amestrain)[i]))
+  plot.new() #created empty plot for arrangement. 
+  print(summary(amestrain[,i]))
+}
+```
+
+
+
+
+
+```{r}
+amescor <- cor(amestrain[,-1])
+#amescor  
+```
+
+
+
+```{r}
+#Creating correlation plot between independent variables
+corrplot(amescor, type="upper", is.corr = FALSE,addCoef.col = 'black',
+         cl.pos = 'b',method = 'color',col=brewer.pal(n=8, name="RdYlBu"),
+         tl.cex = 0.5,number.cex = 0.4)
+```
+
+
+
+```{r}
+#Sales_Price vs. independent varible plots
+par(mfrow=c(2,2))
+for (i in 1:19){
+  plot(amestrain[[i]], amestrain$Sale_Price,  main=paste("Scatter Plot of", names(amestrain)[i], 
+                          "vs SalesPrice"), xlab = names(amestrain)[i], ylab = "sales Price" )
+}
+
+```
+
+
+
+
+
+```{r}
+#8 variables that seems significant when modeling sales price are as following : 'Lot_Area', 'Mas_Vnr_Area', 'Total_Bsmt_SF', 'First_Flr_SF', 'Gr_Liv_Area', 'Garage_Area', 'Wood_Deck_SF', 'Open_Porch_SF' These are the top eight variables that had the highest correlation with the independent variable. Also, the scatter plot seems reasonable to conclude that these might be a potential predictor of sales price. 
+mod_1st <- lm(Sale_Price~ Lot_Area + Mas_Vnr_Area + Total_Bsmt_SF + First_Flr_SF 
+              + Gr_Liv_Area + Garage_Area + Wood_Deck_SF + Open_Porch_SF,
+              data= amestrain)
+
+summary(mod_1st)
+```
+
+
+
+```{r}
+#Main effect full model
+mod_full <- lm(Sale_Price ~. , data = amestrain) #instead of typing all varibles, 
+                                                 #~. will include all varibles.
+summary(mod_full)
+```
+
+```{r}
+#stepwise Selection model
+mod_step <- stepAIC(mod_full, direction = "both", trace = F)
+```
+
+```{r}
+summary(mod_step)
+```
+
+
+
+#### My Prediction model
+
+
+```{r}
+pred_my <- predict(mod_1st, amestest)
+summary(pred_my)
+```
+
+#### Full model
+
+
+```{r}
+pred_full <- predict(mod_full, amestest)
+summary(pred_full)
+```
+
+#### Step model
+
+
+```{r}
+pred_step <- predict(mod_step, amestest)
+summary(pred_step)
+```
+
+
+
+```{r}
+main.my <- data.frame(R2=R2(pred_my,amestest$Sale_Price),
+           RMSE=RMSE(pred_my,amestest$Sale_Price),
+           MAE=MAE(pred_my,amestest$Sale_Price))
+
+main.full <- data.frame(R2=R2(pred_full,amestest$Sale_Price),
+           RMSE=RMSE(pred_full,amestest$Sale_Price),
+           MAE=MAE(pred_full,amestest$Sale_Price))
+
+main.step <- data.frame(R2=R2(pred_step,amestest$Sale_Price),
+           RMSE=RMSE(pred_step,amestest$Sale_Price),
+           MAE=MAE(pred_step,amestest$Sale_Price))
+
+complete <- rbind(main.my, main.full, main.step)
+row.names(complete) <- c("My Model",
+                         "Main effect Full Model",
+                         "Stepwise Model")
+complete
+```
+
+
+
+```{r}
+# Coefficients:
+#                  Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)    -1.882e+04  4.165e+03  -4.518 6.98e-06 ***
+# Lot_Frontage    1.321e+02  2.908e+01   4.544 6.21e-06 ***
+# Lot_Area        4.914e-01  1.747e-01   2.813 0.005013 ** 
+# Mas_Vnr_Area    4.544e+01  6.902e+00   6.584 7.41e-11 ***
+# BsmtFin_SF_2   -1.795e+01  5.803e+00  -3.094 0.002032 ** 
+# Bsmt_Unf_SF    -1.920e+01  2.782e+00  -6.901 9.24e-12 ***
+# Total_Bsmt_SF   5.560e+01  4.003e+00  13.890  < 2e-16 ***
+# First_Flr_SF    6.132e+01  4.430e+00  13.841  < 2e-16 ***
+# Second_Flr_SF   7.239e+01  2.691e+00  26.899  < 2e-16 ***
+# Garage_Area     6.871e+01  6.012e+00  11.427  < 2e-16 ***
+# Wood_Deck_SF    4.534e+01  7.564e+00   5.994 2.87e-09 ***
+# Open_Porch_SF   6.225e+01  1.623e+01   3.835 0.000133 ***
+# Enclosed_Porch -3.543e+01  1.418e+01  -2.498 0.012653 *  
+```
